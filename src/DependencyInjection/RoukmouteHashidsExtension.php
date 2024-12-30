@@ -19,7 +19,7 @@ class RoukmouteHashidsExtension extends Extension
         $loader = new Loader\PhpFileLoader($container, new FileLocator(dirname(__DIR__, 2) . '/Resources/config'));
         $loader->load('services.php');
 
-        foreach (['salt', 'min_hash_length', 'alphabet', 'passthrough', 'auto_convert'] as $parameter) {
+        foreach (['salt', 'min_hash_length', 'passthrough', 'alphabet', 'auto_convert'] as $parameter) {
             $container->setParameter('hashids.' . $parameter, $config[$parameter]);
         }
     }

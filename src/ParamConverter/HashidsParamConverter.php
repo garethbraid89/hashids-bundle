@@ -6,43 +6,28 @@ namespace Roukmoute\HashidsBundle\ParamConverter;
 
 use Hashids\HashidsInterface;
 use LogicException;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
-use Sensio\Bundle\FrameworkExtraBundle\Request\ParamConverter\ParamConverterInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Controller\ValueResolverInterface;
+use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadata;
 
-class HashidsParamConverter implements ParamConverterInterface
+#[Autoconfigure(tags: ['request.param_converter'])]
+class HashidsParamConverter implements ValueResolverInterface
 {
-    private string $alphabet;
-    private bool $autoConvert;
-    private HashidsInterface $hashids;
-    private bool $passthrough;
 
-    public function __construct(HashidsInterface $hashids, bool $passthrough, bool $autoConvert, string $alphabet)
-    {
-        $this->hashids = $hashids;
-        $this->passthrough = $passthrough;
-        $this->autoConvert = $autoConvert;
-        $this->alphabet = $alphabet;
-    }
+    public function __construct(
+        private HashidsInterface $hashids,
+        private bool             $passthrough,
+        private bool             $autoConvert,
+        private string           $alphabet
+    ) {}
 
-    public function apply(Request $request, ParamConverter $configuration): bool
-    {
-        $this->decode($request, $configuration);
 
-        return $this->continueWithNextParamConverters();
-    }
-
-    public function supports(ParamConverter $configuration): bool
-    {
-        return true;
-    }
-
-    private function decode(Request $request, ParamConverter $configuration): void
+    private function decode(Request $request, ArgumentMetadata $configuration): array
     {
         $hash = $this->getHash($request, $configuration);
-
         if ($this->isSkippable($hash)) {
-            return;
+            return [];
         }
 
         $name = $configuration->getName();
@@ -50,11 +35,17 @@ class HashidsParamConverter implements ParamConverterInterface
 
         if ($this->hasHashidDecoded($hashids)) {
             $request->attributes->set($name, current($hashids));
+            if($this->passthrough) {
+                return [];
+            }
+            return [current($hashids)];
         }
 
         if (!$this->autoConvert && !$this->hasHashidDecoded($hashids)) {
             throw new LogicException(sprintf('Unable to decode parameter "%s".', $name));
         }
+
+        return [];
     }
 
     /**
@@ -63,7 +54,7 @@ class HashidsParamConverter implements ParamConverterInterface
      * - $name (if autoconvert)
      * - hashid/id
      */
-    private function getHash(Request $request, ParamConverter $configuration): string
+    private function getHash(Request $request, ArgumentMetadata $configuration): string
     {
         $name = $configuration->getName();
 
@@ -130,8 +121,8 @@ class HashidsParamConverter implements ParamConverterInterface
         return is_int(reset($hashids));
     }
 
-    private function continueWithNextParamConverters(): bool
+    public function resolve(Request $request, ArgumentMetadata $argument): iterable
     {
-        return !$this->passthrough;
+        return $this->decode($request, $argument);
     }
 }

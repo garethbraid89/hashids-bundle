@@ -16,7 +16,7 @@ return static function (ContainerConfigurator $container) {
 
         ->set('hashids.converter', HashidsParamConverter::class)
             ->args([service(HashidsInterface::class), param('hashids.passthrough'), param('hashids.auto_convert'), param('hashids.alphabet')])
-            ->tag('request.param_converter', ['priority' => 1, 'converter' => 'hashids.converter'])
+        ->tag('controller.argument_value_resolver', ['priority' => 150, 'converter' => 'hashids.converter'])
 
         ->set('hashids.twig.extension', HashidsExtension::class)
             ->args([service(HashidsInterface::class)])
